@@ -3,23 +3,51 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pixel 7 Flashlight Control</title>
+<title>Pixel 7 Flashlight Controller</title>
+
+<!-- PWA bits -->
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#000000">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+
 <style>
-  body { font-family:sans-serif; text-align:center; margin-top:3em; }
-  input, button { font-size:1.2em; margin:0.5em; }
+  body {
+    background:#000;
+    color:#0f0;
+    font-family:sans-serif;
+    text-align:center;
+    padding:2em;
+  }
+  h2 { margin-bottom:1em; }
+  input, button {
+    font-size:1.2em;
+    margin:0.5em;
+    padding:0.4em 1em;
+    border-radius:0.4em;
+    border:none;
+  }
+  button { background:#0f0; color:#000; cursor:pointer; }
+  input[type=range] { width:200px; }
 </style>
 </head>
+
 <body>
-  <h2>Pixel 7 Flashlight Control</h2>
+  <h2>Pixel 7 Flashlight Controller</h2>
+
   <button id="toggle">Toggle Torch</button><br>
+
   <label>Brightness:
     <input type="range" id="brightness" min="0" max="1" step="0.05" value="1">
   </label><br>
+
   <label>Pulse every (ms):
     <input type="number" id="interval" value="500" min="100">
   </label>
   <button id="pulse">Start Pulse</button>
   <button id="stop">Stop</button>
+
+  <video id="preview" autoplay playsinline style="width:1px;height:1px;opacity:0;"></video>
 
 <script>
 let stream, track, pulser, torchOn = false;
@@ -30,6 +58,7 @@ async function initCamera() {
       video: { facingMode: "environment" }
     });
     track = stream.getVideoTracks()[0];
+    document.getElementById("preview").srcObject = stream;
   }
   return track;
 }
@@ -41,27 +70,23 @@ async function setTorch(on, level=1) {
     alert("Torch not supported on this browser/device.");
     return;
   }
-
   const constraints = { advanced: [{ torch: on }] };
-  if ('torchLevel' in caps) {
+  if ("torchLevel" in caps) {
     constraints.advanced[0].torchLevel = Math.min(Math.max(level,0),1);
   }
-
   try {
     await t.applyConstraints(constraints);
     torchOn = on;
   } catch (err) {
-    console.error(err);
+    console.error("Torch error:", err);
   }
 }
 
-document.getElementById('toggle').onclick = () => setTorch(!torchOn, +brightness.value);
-document.getElementById('brightness').oninput = () => {
-  if (torchOn) setTorch(true, +brightness.value);
-};
+document.getElementById("toggle").onclick = () => setTorch(!torchOn, +brightness.value);
+document.getElementById("brightness").oninput = () => { if (torchOn) setTorch(true, +brightness.value); };
 
-document.getElementById('pulse').onclick = () => {
-  const interval = +document.getElementById('interval').value;
+document.getElementById("pulse").onclick = () => {
+  const interval = +document.getElementById("interval").value;
   clearInterval(pulser);
   pulser = setInterval(async () => {
     torchOn = !torchOn;
@@ -69,7 +94,7 @@ document.getElementById('pulse').onclick = () => {
   }, interval);
 };
 
-document.getElementById('stop').onclick = () => {
+document.getElementById("stop").onclick = () => {
   clearInterval(pulser);
   setTorch(false);
 };
@@ -78,6 +103,11 @@ window.onbeforeunload = () => {
   clearInterval(pulser);
   if (track) track.stop();
 };
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js')
+    .then(() => console.log('Service Worker registered.'));
+}
 </script>
 </body>
 </html>
